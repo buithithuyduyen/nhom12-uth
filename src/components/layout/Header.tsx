@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Ship, PlusCircle, Search, Sparkles, FolderKanban } from "lucide-react";
+import { Ship, PlusCircle, Search, FolderKanban } from "lucide-react";
 
 export function Header() {
   const pathname = usePathname();
@@ -59,10 +59,6 @@ export function Header() {
 
         {/* Quick Action */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-            <span>AI Claude Trích Xuất Sẵn Sàng</span>
-          </div>
           <Link
             href="/vessels/new"
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition"
