@@ -12,8 +12,8 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  FileCode,
-  Sparkles,
+  FileSpreadsheet,
+  Cpu,
 } from "lucide-react";
 import { DocumentRecord, VesselFile } from "@/types/database";
 import { DOCUMENT_TYPES, detectDocumentType, getDocumentTypeById } from "@/config/documentTypes";
@@ -24,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { formatFileSize, formatDateTime } from "@/lib/utils";
 import { vesselStore } from "@/lib/store/vesselStore";
 import mammoth from "mammoth";
+import ExcelJS from "exceljs";
 
 interface Props {
   vessel: VesselFile;
@@ -45,7 +46,8 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
   // Preview state
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [previewType, setPreviewType] = useState<"pdf" | "docx" | "other">("pdf");
+  const [previewExcelData, setPreviewExcelData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const [previewType, setPreviewType] = useState<"pdf" | "docx" | "xlsx" | "other">("pdf");
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Delete modal state
@@ -86,9 +88,14 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
         file.type.includes("wordprocessingml") ||
         file.name.endsWith(".docx") ||
         file.name.endsWith(".doc");
+      const isExcel =
+        file.type.includes("spreadsheetml") ||
+        file.type.includes("excel") ||
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls");
 
-      if (!isPdf && !isDocx) {
-        toast(`File "${file.name}" không đúng định dạng PDF hoặc Word (.docx)`, "warning");
+      if (!isPdf && !isDocx && !isExcel) {
+        toast(`File "${file.name}" không đúng định dạng hỗ trợ (PDF, Word, Excel)`, "warning");
         continue;
       }
 
@@ -104,13 +111,19 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
           reader.readAsDataURL(file);
         });
 
+        const mime = file.type || (
+          isPdf ? "application/pdf" :
+          isDocx ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" :
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+
         // Tạo bản ghi document
         const newDoc = await vesselStore.saveDocument({
           vessel_file_id: vessel.id,
           file_name: file.name,
           file_path: `documents/${vessel.id}/${file.name}`,
           file_size: file.size,
-          mime_type: file.type || (isPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+          mime_type: mime,
           doc_type: detectedType,
           status: "pending",
         });
@@ -220,17 +233,61 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
     setPreviewDoc(doc);
     setPreviewLoading(true);
     setPreviewContent(null);
+    setPreviewExcelData(null);
 
     const isPdf = doc.file_name.toLowerCase().endsWith(".pdf") || doc.mime_type.includes("pdf");
     const isDocx = doc.file_name.toLowerCase().endsWith(".docx") || doc.mime_type.includes("word");
+    const isExcel =
+      doc.file_name.toLowerCase().endsWith(".xlsx") ||
+      doc.file_name.toLowerCase().endsWith(".xls") ||
+      doc.mime_type.includes("spreadsheet") ||
+      doc.mime_type.includes("excel");
 
-    setPreviewType(isPdf ? "pdf" : isDocx ? "docx" : "other");
+    setPreviewType(isPdf ? "pdf" : isDocx ? "docx" : isExcel ? "xlsx" : "other");
 
     const blobUrl = vesselStore.getStoredFileBlob(doc.id);
 
-    if (isDocx && blobUrl) {
+    if (isExcel && blobUrl) {
       try {
-        // Convert base64 dataUrl back to buffer for mammoth
+        const base64 = blobUrl.split(",")[1];
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(bytes.buffer);
+        const ws = wb.worksheets[0];
+
+        if (ws) {
+          const rows: string[][] = [];
+          ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber <= 30) {
+              const rVals: string[] = [];
+              row.eachCell({ includeEmpty: true }, (cell) => {
+                let v = cell.value;
+                if (typeof v === "object" && v !== null && (v as any).result) {
+                  v = (v as any).result;
+                }
+                rVals.push(v !== null && v !== undefined ? String(v) : "");
+              });
+              rows.push(rVals);
+            }
+          });
+
+          if (rows.length > 0) {
+            setPreviewExcelData({
+              headers: rows[0],
+              rows: rows.slice(1),
+            });
+          }
+        }
+      } catch (err: any) {
+        setPreviewContent(`<p class="text-red-500">Không thể đọc file Excel: ${err?.message}</p>`);
+      }
+    } else if (isDocx && blobUrl) {
+      try {
         const base64 = blobUrl.split(",")[1];
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);
@@ -269,7 +326,7 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
             ref={fileInputRef}
             onChange={(e) => e.target.files && handleFiles(e.target.files)}
             multiple
-            accept=".pdf,.docx,.doc"
+            accept=".pdf,.docx,.doc,.xlsx,.xls"
             className="hidden"
           />
 
@@ -282,7 +339,7 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
               Kéo thả chứng từ vào đây hoặc bấm để chọn nhiều file
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Hỗ trợ định dạng <strong>PDF</strong> và <strong>Word (.docx)</strong>. Hệ thống tự động nhận diện loại chứng từ (Bản khai chung, Danh sách thuyền viên, Bản khai hàng hóa...).
+              Hỗ trợ định dạng <strong>PDF</strong>, <strong>Word (.docx)</strong> và <strong>Excel (.xlsx, .xls)</strong>. Hệ thống tự động nhận diện loại chứng từ và lưu trữ an toàn.
             </p>
           </div>
 
@@ -300,7 +357,7 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
         type="file"
         ref={replaceInputRef}
         onChange={handleReplaceFile}
-        accept=".pdf,.docx,.doc"
+        accept=".pdf,.docx,.doc,.xlsx,.xls"
         className="hidden"
       />
 
@@ -323,7 +380,7 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
               className="gap-2 shadow-xs text-xs"
               size="sm"
             >
-              <Sparkles className="h-4 w-4" />
+              <Cpu className="h-4 w-4" />
               Tiến hành trích xuất AI
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -355,18 +412,30 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
                 <tbody className="divide-y divide-slate-100">
                   {documents.map((doc) => {
                     const isDocx = doc.file_name.endsWith(".docx") || doc.mime_type.includes("word");
+                    const isExcel =
+                      doc.file_name.endsWith(".xlsx") ||
+                      doc.file_name.endsWith(".xls") ||
+                      doc.mime_type.includes("spreadsheet") ||
+                      doc.mime_type.includes("excel");
+
                     return (
                       <tr key={doc.id} className="hover:bg-slate-50/80 transition">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2.5">
                             <div
                               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                                isDocx
+                                isExcel
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : isDocx
                                   ? "bg-blue-100 text-blue-700"
                                   : "bg-red-100 text-red-700"
                               }`}
                             >
-                              <FileText className="h-4 w-4" />
+                              {isExcel ? (
+                                <FileSpreadsheet className="h-4 w-4" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
                             </div>
                             <span className="font-semibold text-slate-900 truncate max-w-[220px]" title={doc.file_name}>
                               {doc.file_name}
@@ -490,6 +559,36 @@ export function VesselDocumentsTab({ vessel, onNextStep, onRefresh }: Props) {
                 className="h-[65vh] w-full rounded-md border border-slate-300"
                 title={previewDoc.file_name}
               />
+            ) : previewType === "xlsx" && previewExcelData ? (
+              <div className="space-y-3">
+                <div className="text-xs text-slate-500 font-medium">
+                  Hiển thị tối đa 30 dòng đầu tiên của bảng tính:
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        {previewExcelData.headers.map((h, i) => (
+                          <th key={i} className="px-3 py-2 border-r border-slate-200 whitespace-nowrap">
+                            {h || `Cột ${i + 1}`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono">
+                      {previewExcelData.rows.map((row, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-50">
+                          {previewExcelData.headers.map((_, cIdx) => (
+                            <td key={cIdx} className="px-3 py-1.5 border-r border-slate-100 whitespace-nowrap text-slate-800">
+                              {row[cIdx] || ""}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             ) : previewType === "docx" && previewContent ? (
               <div
                 className="prose prose-sm max-w-none rounded-md bg-white p-6 shadow-xs leading-relaxed"

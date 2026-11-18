@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import mammoth from "mammoth";
+import ExcelJS from "exceljs";
 import { getDocumentTypeById } from "@/config/documentTypes";
 
 // Không log nội dung chứng từ ra console ở môi trường production theo yêu cầu
@@ -33,6 +34,38 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         return NextResponse.json(
           { error: `File Word bị hỏng hoặc không đọc được: ${err?.message}` },
+          { status: 422 }
+        );
+      }
+    } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.type.includes("spreadsheet")) {
+      try {
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer as any);
+        const textParts: string[] = [];
+
+        wb.eachSheet((ws) => {
+          textParts.push(`\n=== SHEET: ${ws.name} ===`);
+          ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            const rowValues: string[] = [];
+            row.eachCell({ includeEmpty: true }, (cell) => {
+              let v = cell.value;
+              if (typeof v === "object" && v !== null && (v as any).result) {
+                v = (v as any).result;
+              }
+              if (v !== null && v !== undefined) {
+                rowValues.push(String(v));
+              }
+            });
+            if (rowValues.length > 0) {
+              textParts.push(`Row ${rowNumber}: ${rowValues.join(" | ")}`);
+            }
+          });
+        });
+
+        extractedText = textParts.join("\n");
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: `File Excel bị lỗi hoặc không thể đọc: ${err?.message}` },
           { status: 422 }
         );
       }
