@@ -8,22 +8,22 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-blue-600 text-white shadow hover:bg-blue-700 active:bg-blue-800",
+          "bg-blue-600 text-white shadow-xs hover:bg-blue-700 active:bg-blue-800",
         destructive:
-          "bg-red-600 text-white shadow-sm hover:bg-red-700 active:bg-red-800",
+          "bg-red-600 text-white shadow-xs hover:bg-red-700 active:bg-red-800",
         outline:
-          "border border-slate-300 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800",
+          "border border-slate-300 bg-white text-slate-800 shadow-xs hover:bg-slate-50 hover:text-slate-900",
         secondary:
-          "bg-slate-100 text-slate-900 shadow-sm hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100",
-        ghost: "hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800",
+          "bg-slate-100 text-slate-900 shadow-xs hover:bg-slate-200",
+        ghost: "hover:bg-slate-100 text-slate-700 hover:text-slate-900",
         link: "text-blue-600 underline-offset-4 hover:underline",
-        success: "bg-emerald-600 text-white shadow hover:bg-emerald-700",
+        success: "bg-emerald-600 text-white shadow-xs hover:bg-emerald-700",
       },
       size: {
-        default: "h-9 px-4 py-2",
+        default: "h-9 px-4 py-2 text-xs font-semibold",
         sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-11 rounded-lg px-6 text-base",
-        icon: "h-9 w-9",
+        lg: "h-11 rounded-lg px-6 text-sm",
+        icon: "h-8 w-8",
       },
     },
     defaultVariants: {
