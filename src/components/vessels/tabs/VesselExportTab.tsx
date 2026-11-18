@@ -81,48 +81,35 @@ export function VesselExportTab({ vessel, onRefresh }: Props) {
         // Nếu người dùng tải lên mẫu riêng, đọc và điền giữ nguyên format
         const arrayBuffer = await customTemplateFile.arrayBuffer();
         await workbook.xlsx.load(arrayBuffer);
-        worksheet = workbook.getWorksheet(1) || workbook.addWorksheet("Bản khai chung");
+        worksheet = workbook.getWorksheet("General Declaration") || workbook.getWorksheet(1)!;
       } else {
-        // Tạo bảng mẫu chuẩn IMO FAL Form 1 đẹp mắt
-        worksheet = workbook.addWorksheet("Bản khai chung");
+        // Nạp file mẫu chuẩn Cổng thông tin một cửa quốc gia (TemplateNSW.xlsx)
+        let loaded = false;
+        try {
+          const res = await fetch("/templates/TemplateNSW.xlsx");
+          if (res.ok) {
+            const arrayBuffer = await res.arrayBuffer();
+            await workbook.xlsx.load(arrayBuffer);
+            worksheet = workbook.getWorksheet("General Declaration") || workbook.getWorksheet(1)!;
+            loaded = true;
+          }
+        } catch {
+          loaded = false;
+        }
 
-        worksheet.columns = [
-          { width: 5 },  // A
-          { width: 22 }, // B: Label 1
-          { width: 28 }, // C: Value 1
-          { width: 5 },  // D
-          { width: 5 },  // E
-          { width: 22 }, // F: Label 2
-          { width: 28 }, // G: Value 2
-        ];
-
-        // Tiêu đề
-        worksheet.mergeCells("B2:G2");
-        const titleCell = worksheet.getCell("B2");
-        titleCell.value = "IMO GENERAL DECLARATION - BẢN KHAI CHUNG HÀNG HẢI";
-        titleCell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FF0F2E5C" } };
-        titleCell.alignment = { horizontal: "center", vertical: "middle" };
-        worksheet.getRow(2).height = 30;
-
-        // Header labels
-        worksheet.getCell("B4").value = "1. Tên tàu (Name of Ship):";
-        worksheet.getCell("B5").value = "2. Số IMO (IMO Number):";
-        worksheet.getCell("B6").value = "3. Quốc tịch tàu (Flag State):";
-        worksheet.getCell("B8").value = "4. Cảng đến (Port of Arrival):";
-        worksheet.getCell("B10").value = "5. Dung tích toàn phần (GT):";
-        worksheet.getCell("B12").value = "6. Tổng số thuyền viên:";
-
-        worksheet.getCell("F4").value = "Hô hiệu (Call Sign):";
-        worksheet.getCell("F5").value = "Số chuyến (Voyage No):";
-        worksheet.getCell("F6").value = "Thuyền trưởng (Master):";
-        worksheet.getCell("F8").value = "Thời gian đến (ETA):";
-        worksheet.getCell("F10").value = "Dung tích hữu dụng (NT):";
-
-        // Định dạng nhãn
-        ["B4", "B5", "B6", "B8", "B10", "B12", "F4", "F5", "F6", "F8", "F10"].forEach((ref) => {
-          const cell = worksheet.getCell(ref);
-          cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FF334155" } };
-        });
+        if (!loaded) {
+          // Fallback tạo bảng mẫu nếu không tìm thấy file
+          worksheet = workbook.addWorksheet("Bản khai chung");
+          worksheet.columns = [
+            { width: 5 },  // A
+            { width: 22 }, // B: Label 1
+            { width: 28 }, // C: Value 1
+            { width: 5 },  // D
+            { width: 5 },  // E
+            { width: 22 }, // F: Label 2
+            { width: 28 }, // G: Value 2
+          ];
+        }
       }
 
       // Điền dữ liệu đã xác nhận vào các ô theo cấu hình ánh xạ
