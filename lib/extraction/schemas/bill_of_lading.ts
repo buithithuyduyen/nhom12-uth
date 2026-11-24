@@ -1,0 +1,55 @@
+import type { DocSpec } from "./common";
+
+export const billOfLadingSpec: DocSpec = {
+  docType: "bill_of_lading",
+  title: "Vận đơn (Bill of Lading)",
+  instructions:
+    "Chép số B/L, số container, số seal đúng từng ký tự. Shipper/Consignee/Notify chép cả tên và địa chỉ như trên chứng từ (gộp thành một chuỗi, giữ nguyên chữ). " +
+    "Trọng lượng/số lượng giữ nguyên cách viết số gốc kèm đơn vị tách riêng. Nếu là House B/L có ghi số Master B/L thì điền masterBlNumber.",
+  header: [
+    { key: "blNumber", description: "Số vận đơn (B/L No.)" },
+    { key: "blDate", description: "Ngày phát hành vận đơn (Date of issue)" },
+    { key: "shippedOnBoardDate", description: "Ngày xếp hàng lên tàu (Shipped on board date), nếu có" },
+    { key: "placeOfIssue", description: "Nơi phát hành vận đơn" },
+    { key: "isHouseBl", description: "'yes' nếu là House B/L (vận đơn gom hàng), 'no' nếu là Master/Ocean B/L, null nếu không rõ" },
+    { key: "masterBlNumber", description: "Số vận đơn gốc (Master B/L) nếu có ghi" },
+    { key: "shipper", description: "Người gửi hàng (tên + địa chỉ)" },
+    { key: "consignee", description: "Người nhận hàng (tên + địa chỉ, hoặc 'TO ORDER...')" },
+    { key: "notifyParty", description: "Người được thông báo 1" },
+    { key: "notifyParty2", description: "Người được thông báo 2, nếu có" },
+    { key: "vesselName", description: "Tên tàu" },
+    { key: "voyageNo", description: "Số chuyến" },
+    { key: "loadingPort", description: "Cảng xếp hàng (Port of loading)" },
+    { key: "dischargePort", description: "Cảng dỡ hàng (Port of discharge)" },
+    { key: "transhipmentPort", description: "Cảng chuyển tải, nếu có" },
+    { key: "placeOfDelivery", description: "Nơi giao hàng (Place of delivery)" },
+    { key: "finalDestination", description: "Đích cuối (Final destination), nếu có" },
+    { key: "description", description: "Mô tả hàng hóa (Description of goods)" },
+    { key: "hsCode", description: "Mã HS nếu có" },
+    { key: "packages", description: "Số kiện (chỉ con số), null nếu hàng rời không có số kiện" },
+    { key: "packageKind", description: "Loại kiện nguyên văn (vd. IN BULK, BAGS, PALLETS)" },
+    { key: "netWeight", description: "Trọng lượng tịnh, số nguyên văn" },
+    { key: "grossWeight", description: "Tổng trọng lượng, số nguyên văn" },
+    { key: "weightUnit", description: "Đơn vị trọng lượng nguyên văn (MT, KGS...)" },
+    { key: "measurement", description: "Thể tích/kích thước, số nguyên văn" },
+    { key: "measurementUnit", description: "Đơn vị thể tích nguyên văn (CBM, M3...)" },
+    { key: "containerNo", description: "Số container (nếu chỉ một), nguyên văn" },
+    { key: "sealNo", description: "Số seal (nếu chỉ một), nguyên văn" },
+    { key: "freightTerms", description: "Điều kiện cước (FREIGHT PREPAID/COLLECT), nếu có" },
+  ],
+  tables: [
+    {
+      key: "containers",
+      description: "Danh sách container (nếu có nhiều container); hàng rời thì mảng rỗng",
+      columns: [
+        { key: "containerNo", description: "Số container" },
+        { key: "sealNo", description: "Số seal" },
+        { key: "containerType", description: "Loại container (20GP, 40HC...)" },
+        { key: "packages", description: "Số kiện" },
+        { key: "grossWeight", description: "Trọng lượng" },
+        { key: "measurement", description: "Thể tích" },
+        { key: "description", description: "Mô tả hàng trong container nếu ghi riêng" },
+      ],
+    },
+  ],
+};

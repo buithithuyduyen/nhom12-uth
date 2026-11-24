@@ -1,0 +1,8 @@
+# Không gửi lên Vercel: API key, dữ liệu chạy thử trên máy, file build/thư viện (Vercel tự cài & build lại)
+.env
+.env.*
+!.env.example
+data
+.next
+node_modules
+*.log

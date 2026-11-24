@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MarineDoc AI
 
-## Getting Started
+Upload chứng từ hàng hải (PDF scan, DOCX, ảnh) → AI bóc tách → điền vào file mẫu NSW → kiểm tra chéo → tải Excel.
 
-First, run the development server:
+## Chạy
 
 ```bash
+npm install
+# tạo file .env.local:
+#   LLM_PROVIDER=deepseek          # hoặc gemini
+#   DEEPSEEK_API_KEY=sk-...
+#   DEEPSEEK_MODEL=deepseek-flash
+#   GEMINI_API_KEY=...             # nếu dùng gemini
+#   GEMINI_MODEL=gemini-3.5-flash-lite
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Kéo thả chứng từ → hệ thống tách theo từng trang/phần.
+2. Bấm **Bóc tách bằng AI** → dữ liệu tự điền vào các sheet.
+3. Xem mục **Kiểm tra chéo**: chọn giá trị đúng khi các chứng từ ghi khác nhau.
+4. Sửa ô tô vàng/đỏ (di chuột để xem lý do) → **Tải Excel**.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Chưa có API key: vẫn upload, nhập tay và tải Excel được, chỉ nút bóc tách báo lỗi.
 
-## Learn More
+## Kiểm tra
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx tsx scripts/verify-export.ts       # kiểm tra file Excel xuất gần nhất (PASS/FAIL)
+npx tsx scripts/inspect-template.ts    # xem cấu trúc template
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Ghi chú
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Trang scan: AI đọc ảnh; OCR chạy trên máy (tesseract.js) đối chiếu lại các ô có chữ số
+  (số hộ chiếu, ngày, số B/L...). Ô không khớp OCR được tô vàng. Lần đầu cần Internet để tải dữ liệu OCR.
 
-## Deploy on Vercel
+- Template: `templates/TemplateNSW.xlsx`. Mapping ô: `lib/mapping/nsw.ts`.
+- Dữ liệu lưu trong `./data` (đã gitignore).
+- Mã cảng: thêm vào `data/ports.json` dạng `[{"code":"VNSGN","name":"HO CHI MINH","aliases":["SAIGON"]}]`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy lên Vercel (bản demo)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Trên Vercel, ứng dụng tự chạy ở **chế độ demo (stateless)**:
+- Server không lưu gì. Dữ liệu chuyến tàu nằm trong trình duyệt, **tải lại trang sẽ mất**. Nhớ tải Excel trước khi đóng.
+- File tải lên tối đa **4,4 MB / file** (giới hạn của Vercel). Không có OCR kiểm tra phụ.
+- Thử chế độ này trên máy: `npm run build` rồi `APP_MODE=stateless npx next start`.
+
+Các bước (chạy trong thư mục dự án):
+
+```bash
+npx vercel login                 # đăng nhập (mở trình duyệt)
+npx vercel                       # lần đầu: tạo project, deploy bản xem thử
+npx vercel env add DEEPSEEK_API_KEY production      # dán API key khi được hỏi
+npx vercel env add LLM_PROVIDER production          # nhập: deepseek
+npx vercel env add DEEPSEEK_MODEL production        # nhập: deepseek-flash
+npx vercel --prod                # deploy bản chính thức (lấy link)
+```
+
+Nếu Vercel báo lỗi `maxDuration` vượt giới hạn gói: giảm `export const maxDuration` trong
+`app/api/stateless/page/route.ts` và `app/api/upload/route.ts` xuống `60`.
