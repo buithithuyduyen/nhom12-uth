@@ -25,7 +25,7 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/types";
 import { aggregate, autoSelectActive, ensureSheets, initialSheets, type AggregateContext } from "@/lib/aggregate";
-import { crosscheck, unresolvedCount } from "@/lib/crosscheck";
+import { crosscheck, DISMISSED, unresolvedCount } from "@/lib/crosscheck";
 import { apiJson, downloadBlob, uploadWithProgress } from "@/lib/client";
 import type { CellRule } from "@/lib/excel/template-reader";
 
@@ -88,6 +88,8 @@ interface ShipmentContextValue {
   updateSection: (section: SectionKey, updater: (s: SheetsData[SectionKey]) => SheetsData[SectionKey]) => void;
   setHeaderValue: (section: SectionKey, key: string, value: string, extra?: Partial<FieldValue>) => void;
   resolveDiscrepancy: (d: Discrepancy, field: FieldValue) => void;
+  /** Đánh dấu đã xem & bỏ qua (dismissed=false để hoàn tác) */
+  dismissDiscrepancy: (id: string, dismissed: boolean) => void;
   saveNow: () => Promise<void>;
   ensureShipment: () => Promise<string>;
   uploadFiles: (files: File[]) => Promise<void>;
@@ -444,6 +446,19 @@ export function ShipmentProvider({ children }: { children: React.ReactNode }) {
         }));
       }
       setResolvedValues((prev) => ({ ...prev, [d.id]: field.value }));
+      markDirty();
+    },
+    [markDirty],
+  );
+
+  const dismissDiscrepancy = useCallback(
+    (id: string, dismissed: boolean) => {
+      setResolvedValues((prev) => {
+        const next = { ...prev };
+        if (dismissed) next[id] = DISMISSED;
+        else delete next[id];
+        return next;
+      });
       markDirty();
     },
     [markDirty],
@@ -820,6 +835,7 @@ export function ShipmentProvider({ children }: { children: React.ReactNode }) {
     updateSection,
     setHeaderValue,
     resolveDiscrepancy,
+    dismissDiscrepancy,
     saveNow,
     ensureShipment,
     uploadFiles,

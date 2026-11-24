@@ -13,6 +13,7 @@ import {
 } from "@/lib/aggregate";
 import { normalizeDate } from "@/lib/normalize";
 import type { Discrepancy, FieldValue } from "@/lib/types";
+import { DISMISSED } from "@/lib/crosscheck";
 
 interface Choice {
   key: string;
@@ -47,13 +48,16 @@ function Card({
   currentValue,
   onChoose,
   onGoToCell,
+  onDismiss,
 }: {
   d: Discrepancy;
   choices: Choice[];
   currentValue: string | null;
   onChoose: (c: Choice) => void;
   onGoToCell: (() => void) | null;
+  onDismiss: (dismissed: boolean) => void;
 }) {
+  const dismissed = d.resolvedValue === DISMISSED;
   const error = d.severity === "error";
   return (
     <li id={discrepancyDomId(d.id)} className={`overflow-hidden rounded-xl border bg-white shadow-sm ${error ? "border-red-200" : "border-amber-200"}`}>
@@ -112,11 +116,27 @@ function Card({
             </div>
           </>
         ) : (
-          <ul className="divide-y divide-slate-100">
-            {d.sources.map((s, i) => (
-              <SourceRow key={i} value={s.value} fileName={s.fileName} page={s.page} />
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-slate-100">
+              {d.sources.map((s, i) => (
+                <SourceRow key={i} value={s.value} fileName={s.fileName} page={s.page} />
+              ))}
+            </ul>
+            <div className="mt-2 flex justify-end">
+              {dismissed ? (
+                <button onClick={() => onDismiss(false)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100">
+                  Đã bỏ qua · Xem lại
+                </button>
+              ) : (
+                <button
+                  onClick={() => onDismiss(true)}
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <Check className="h-3.5 w-3.5" /> Đã xem, bỏ qua
+                </button>
+              )}
+            </div>
+          </>
         )}
       </div>
     </li>
@@ -124,7 +144,7 @@ function Card({
 }
 
 export function CheckPanel() {
-  const { shipment, check, aggregateContext, resolveDiscrepancy, sheets, jumpTo } = useShipment();
+  const { shipment, check, aggregateContext, resolveDiscrepancy, dismissDiscrepancy, sheets, jumpTo } = useShipment();
   const [showWarnings, setShowWarnings] = useState(true);
   const [showResolved, setShowResolved] = useState(false);
   const instances = shipment?.extractedData.instances ?? [];
@@ -143,7 +163,8 @@ export function CheckPanel() {
 
   const choicesFor = (d: Discrepancy): Choice[] => {
     const t = d.target;
-    if (!t) return [];
+    // Chỉ mục "các chứng từ ghi khác nhau" mới có giá trị để chọn; luật logic/cảnh báo thì chỉ xem & bỏ qua
+    if (!t || !/^(voyage:|security:|crew-dob:|crew-exp:)/.test(d.id)) return [];
     if (t.field && (t.section === "voyage" || t.section === "security")) {
       const list = (t.section === "security" ? securityCands : voyageCands)[t.field] ?? [];
       const seen = new Map<string, Choice>();
@@ -192,6 +213,7 @@ export function CheckPanel() {
       currentValue={currentValueFor(d)}
       onChoose={(c) => resolveDiscrepancy(d, c.field)}
       onGoToCell={d.target ? () => jumpTo(d.target!) : null}
+      onDismiss={(v) => dismissDiscrepancy(d.id, v)}
     />
   );
 

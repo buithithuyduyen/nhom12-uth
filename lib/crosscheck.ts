@@ -13,6 +13,8 @@ import { ageAt, canonicalText, compareDates, normalizeIdNumber, normalizeVoyageN
 import { portCompareKey, samePortKey } from "@/lib/ports";
 
 const NOTICE_TARGET = "Notice ship to port + General Declaration";
+/** Giá trị đánh dấu mục đã được người dùng xem và bỏ qua */
+export const DISMISSED = "__dismissed__";
 
 function voyageLabel(key: string): string {
   return SECTIONS.voyage.header.find((f) => f.key === key)?.label ?? key;
@@ -208,10 +210,10 @@ export function crosscheck(
       discrepancies.push({
         id: `logic:arr-dep:${inst.fileId}:${inst.page}`,
         field: "arrivalDeparture",
-        label: "Thời gian đến/rời",
+        label: `Thời gian đến/rời – ${inst.fileName}`,
         sheetTarget: NOTICE_TARGET,
-        severity: "error",
-        message: "Ngày đến sau ngày rời",
+        severity: "warning",
+        message: "Trong cùng chứng từ, giờ đến sau giờ rời – kiểm tra xem có phải hai địa điểm khác nhau (vd. rời cầu rồi đến khu neo)",
         sources: [
           { fileName: inst.fileName, page: inst.page, value: `Đến: ${inst.header.arrivalTime?.value}` },
           { fileName: inst.fileName, page: inst.page, value: `Rời: ${inst.header.departureTime?.value}` },
@@ -343,6 +345,10 @@ export function crosscheck(
     });
   }
 
+  // Mục người dùng đã xem và bấm "bỏ qua"
+  for (const d of discrepancies) {
+    if (d.resolvedValue === undefined && resolvedValues[d.id] === DISMISSED) d.resolvedValue = DISMISSED;
+  }
   return { discrepancies, comparedGroups };
 }
 
